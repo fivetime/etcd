@@ -39,7 +39,7 @@ jobs:
         # permissions 块里也没有 workflows 可声明），而 etcd 上游 v3.5+ 的 tag 历史
         # 都包含 workflow 文件，因此没有 PAT 时这些 tag 推不上去。
         run: |
-          git remote set-url origin https://x-access-token:${{ secrets.SYNC_TOKEN || secrets.GITHUB_TOKEN }}@github.com/fivetime/etcd.git
+          git remote set-url origin https://x-access-token:${{ secrets.SYNC_TOKEN || secrets.CR_PAT || secrets.GITHUB_TOKEN }}@github.com/fivetime/etcd.git
 
       - name: Push to your repo
         run: |
