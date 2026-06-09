@@ -19,8 +19,8 @@ needs to point at this image.
 
 ## Build
 
-The builder stage clones the etcd source (`ETCD_REPO`, CI passes upstream
-`etcd-io/etcd`) at `ETCD_REF` (a release tag) and runs
+The builder stage clones this fork (`ETCD_REPO`, overridable) at `ETCD_REF`
+(a release tag, synced from upstream by sync-upstream.yml) and runs
 `./scripts/build.sh` (`CGO_ENABLED=0`, static binaries). Source is cloned by
 ref — not taken from the build context — because upstream release tags do not
 contain this `docker/` directory. The context (repo root on `main`) only
