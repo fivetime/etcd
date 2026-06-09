@@ -1,0 +1,46 @@
+name: Sync from Upstream
+
+on:
+  schedule:
+    - cron: '0 4 * * 0'  # 每周日 UTC 4:00 自动执行
+  workflow_dispatch:     # 允许手动触发
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout your repo
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up git user
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: git remote add upstream https://github.com/etcd-io/etcd.git
+
+      - name: Fetch upstream (incl. all tags)
+        run: git fetch --tags upstream
+
+      - name: Merge upstream/main into main
+        run: git merge --no-edit upstream/main
+
+      - name: Set push URL to use token
+        run: |
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/fivetime/etcd.git
+
+      - name: Push to your repo
+        run: |
+          git push origin main
+          # 推送上游全部 release tag（v3.*）。这是镜像构建的源码依据：
+          # build 从 fork 按最新 tag 检出源码构建，push tag 会连带其可达提交一起上传，
+          # 因此 release 源码无需单独分支即可进入 fork。
+          git push origin --tags

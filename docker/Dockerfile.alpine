@@ -1,0 +1,79 @@
+# SPDX-License-Identifier: APACHE-2.0
+#
+# etcd image built FROM THIS REPOSITORY's source, on Alpine, with the
+# Bitnami (Apache-2.0) script layer vendored in docker/prebuildfs + docker/rootfs.
+# Fully self-contained: no Bitnami online endpoints, no prebuilt binary downloads.
+#
+# Source is cloned at ETCD_REF (a release tag like v3.6.7, resolved by CI), because
+# upstream tags do not contain this docker/ directory — same pattern as the bird repo.
+# Build context = repository root on main (for docker/prebuildfs + docker/rootfs):
+#   docker buildx build -f docker/Dockerfile.alpine \
+#     --build-arg ETCD_REF=v3.6.7 \
+#     --platform linux/amd64,linux/arm64 \
+#     -t <your-registry>/etcd:<tag> --push .
+
+# ---------- Stage 1: build etcd/etcdctl/etcdutl from source ----------
+FROM golang:1.26-alpine AS builder
+
+RUN apk add --no-cache bash git
+
+ARG ETCD_REPO=https://github.com/fivetime/etcd.git
+ARG ETCD_REF=main
+RUN git clone --depth 1 --branch "${ETCD_REF}" "${ETCD_REPO}" /workspace
+
+WORKDIR /workspace
+# scripts/build.sh defaults to CGO_ENABLED=0 -> static binaries, outputs to bin/
+RUN ./scripts/build.sh
+
+# ---------- Stage 2: Alpine runtime with the Bitnami script layer ----------
+FROM alpine:3.21
+
+LABEL org.opencontainers.image.title="etcd" \
+      org.opencontainers.image.base.name="docker.io/library/alpine:3.21" \
+      org.opencontainers.image.source="https://github.com/fivetime/etcd" \
+      org.opencontainers.image.description="etcd built from source, packaged with the Bitnami (Apache-2.0) script layer on Alpine"
+
+ENV HOME="/" \
+    OS_FLAVOUR="alpine-3.21" \
+    OS_NAME="linux"
+
+# Runtime dependencies for the Bitnami scripts (written for bash + GNU userland):
+#   bash       - all scripts are #!/bin/bash
+#   coreutils  - GNU stat -c / comm / sync -d / sort, used by libetcd.sh & preupgrade.sh
+#   grep/sed/gawk/findutils - GNU versions, drop-in replacements for busybox equivalents
+#   yq         - mikefarah Go yq (same project Bitnami packages), used for config rendering
+#   ca-certificates - TLS trust store for etcdctl over https
+# getent is already provided by the Alpine base image (musl-utils).
+RUN apk add --no-cache bash coreutils grep sed gawk findutils yq ca-certificates
+
+# Bitnami helper + etcd script layers (Apache-2.0, vendored, unchanged)
+COPY docker/prebuildfs /
+COPY docker/rootfs /
+
+# Normalize artifacts a Windows build context may introduce: CRLF line endings
+# (kernel would look for "bash\r" and fail with "not found") and lost exec bits.
+# Deliberately lists exact paths — never run sed across all of /usr/sbin.
+RUN sed -i 's/\r$//' /opt/bitnami/scripts/*.sh /opt/bitnami/scripts/etcd/*.sh \
+        /usr/sbin/install_packages /usr/sbin/uninstall_packages /usr/sbin/run-script && \
+    chmod +x /opt/bitnami/scripts/*.sh /opt/bitnami/scripts/etcd/*.sh \
+        /usr/sbin/install_packages /usr/sbin/uninstall_packages /usr/sbin/run-script
+
+# etcd binaries built from this repo's source
+COPY --from=builder /workspace/bin/etcd /workspace/bin/etcdctl /workspace/bin/etcdutl /opt/bitnami/etcd/bin/
+
+# Place yq where the scripts expect it (PATH includes /opt/bitnami/common/bin)
+RUN mkdir -p /opt/bitnami/common/bin && \
+    ln -s /usr/bin/yq /opt/bitnami/common/bin/yq
+
+RUN chmod g+rwX /opt/bitnami && \
+    /opt/bitnami/scripts/etcd/postunpack.sh
+
+ENV BITNAMI_APP_NAME="etcd" \
+    PATH="/opt/bitnami/common/bin:/opt/bitnami/etcd/bin:$PATH"
+
+EXPOSE 2379 2380
+
+WORKDIR /opt/bitnami/etcd
+USER 1001
+ENTRYPOINT [ "/opt/bitnami/scripts/etcd/entrypoint.sh" ]
+CMD [ "/opt/bitnami/scripts/etcd/run.sh" ]

@@ -1,0 +1,113 @@
+name: Build & Push Images
+
+on:
+  workflow_dispatch:          # 手动触发：强制重建（忽略幂等跳过）
+  schedule:
+    - cron: '0 5 * * 0'       # 周日 UTC 5:00，比 sync(4:00) 晚 1 小时（版本未变则跳过）
+  workflow_run:
+    workflows: ["Sync from Upstream"]   # 上游同步成功后自动触发
+    types: [completed]
+
+concurrency:
+  group: build-images
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    # 定时/手动总是构建；由 sync 触发时，仅在 sync 成功后构建。
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # 3.x：当前唯一活跃线，承载 latest
+          - line: "3"
+            tag_glob: "v3.*"
+            also_latest: true
+
+    steps:
+      - name: Checkout repo (with tags)
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0   # 需要全部 tag 来解析每条线的最新版本
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve version & decide whether to build
+        id: meta
+        run: |
+          set -euo pipefail
+          repo="ghcr.io/${GITHUB_REPOSITORY,,}"
+          line="${{ matrix.line }}"
+
+          # 取该线最高的正式 release tag（如 v3.* 里的 v3.3.0）。
+          # grep 过滤掉预发布（-alpha / -rc / -pre 等），只留 vX.Y(.Z)。
+          ref="$(git tag -l '${{ matrix.tag_glob }}' \
+                 | grep -E '^v[0-9]+\.[0-9]+(\.[0-9]+)?$' \
+                 | sort -V | tail -1)"
+          if [ -z "$ref" ]; then
+            echo "::error::No tag matching '${{ matrix.tag_glob }}' found. Run 'Sync from Upstream' first." >&2
+            exit 1
+          fi
+          version="${ref#v}"                 # v3.3.0 -> 3.3.0
+
+          # 幂等：若该精确版本已发布，则跳过（手动 dispatch 例外，强制重建）。
+          skip="false"
+          if [ "${{ github.event_name }}" != "workflow_dispatch" ] \
+             && docker manifest inspect "${repo}:${version}" >/dev/null 2>&1; then
+            echo "::notice::${repo}:${version} already published — skipping line ${line}."
+            skip="true"
+          fi
+
+          # 镜像 tag：滚动大版本 :3 + 精确版本 :3.3.0 (+ latest)
+          tags="${repo}:${line},${repo}:${version}"
+          if [ "${{ matrix.also_latest }}" = "true" ]; then
+            tags="${tags},${repo}:latest"
+          fi
+
+          {
+            echo "ref=$ref"
+            echo "version=$version"
+            echo "tags=$tags"
+            echo "skip=$skip"
+          } >> "$GITHUB_OUTPUT"
+          echo "Line $line -> ref=$ref version=$version skip=$skip"
+          echo "Tags: $tags"
+
+      - name: Set up QEMU
+        if: steps.meta.outputs.skip != 'true'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        if: steps.meta.outputs.skip != 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        if: steps.meta.outputs.skip != 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.alpine
+          push: true
+          provenance: false
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          build-args: |
+            ETCD_REPO=https://github.com/${{ github.repository }}.git
+            ETCD_REF=${{ steps.meta.outputs.ref }}
+          labels: |
+            org.opencontainers.image.title=etcd
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ steps.meta.outputs.version }}
+            org.opencontainers.image.description=etcd ${{ steps.meta.outputs.version }} built from source on Alpine with the Bitnami (Apache-2.0) script layer

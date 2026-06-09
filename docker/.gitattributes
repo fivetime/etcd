@@ -1,0 +1,4 @@
+# Scripts in prebuildfs/rootfs are executed inside Linux containers — they must
+# stay LF even when the repo is checked out on Windows (CRLF in a shebang makes
+# the kernel look for "bash\r" and fail with "not found").
+* text=auto eol=lf
