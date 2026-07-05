@@ -5,6 +5,10 @@ Previous change logs can be found at [CHANGELOG-3.6](https://github.com/etcd-io/
 
 ## v3.7.0 (TBC)
 
+### etcd server
+
+- Fix [CRL enforcement bypass on gRPC listener when `--listen-client-http-urls` is configured](https://github.com/etcd-io/etcd/pull/22024), refer to [security/advisories/GHSA-3wh4-j44w-pg92](https://github.com/etcd-io/etcd/security/advisories/GHSA-3wh4-j44w-pg92) for more details.
+
 ---
 
 ## v3.7.0-rc.1 (TBC)
@@ -21,6 +25,8 @@ Previous change logs can be found at [CHANGELOG-3.6](https://github.com/etcd-io/
 
 - Compile binaries using [go 1.26.4](https://github.com/etcd-io/etcd/pull/21891).
 - Bump golang.org/x/crypto to [v0.52.0](https://github.com/etcd-io/etcd/pull/21903) to resolve several CVEs.
+- Bump go.etcd.io/raft/v3 from 3.7.0-rc.1 to [v3.7.0](https://github.com/etcd-io/etcd/pull/22008).
+- Bump go.etcd.io/bbolt from 1.5.0-rc.0 to [v1.5.0](https://github.com/etcd-io/etcd/pull/22008).
 
 ---
 
