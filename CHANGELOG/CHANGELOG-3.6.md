@@ -4,11 +4,33 @@ Previous change logs can be found at [CHANGELOG-3.5](https://github.com/etcd-io/
 
 ---
 
-## v3.6.14 (TBC)
+## v3.6.15 (TBC)
+
+---
+
+## v3.6.14 (2026-07-23)
+
+### etcd server
+
+- Fix [unbounded io.ReadAll on peer lease HTTP handler body](https://github.com/etcd-io/etcd/pull/22148)
+- [Set a reasonable value for `snapshotLimitByte`](https://github.com/etcd-io/etcd/pull/22146)
+- Fix [the `costTxnReq` ignores nested `RequestTxn` issue](https://github.com/etcd-io/etcd/pull/22140)
+- [Set a ReadHeaderTimeout for client http.Server](https://github.com/etcd-io/etcd/pull/22144)
+- Fix [the security issue where a user granted read permission on one key could receive watch responses for every key starting from that key](https://github.com/etcd-io/etcd/security/advisories/GHSA-xg4h-6gfc-h4m8)
+
+### Package `clientv3`
+
+- Fix [unsynchronized range over leaseCache.entries](https://github.com/etcd-io/etcd/pull/22150)
+
+### package `client/pkg/v3`
+
+- [Set a tlsHandshakeTimeout for tlsListener](https://github.com/etcd-io/etcd/pull/22142). Refer to [GHSA-6vch-q96h-7gc3](https://github.com/etcd-io/etcd/security/advisories/GHSA-6vch-q96h-7gc3) for more details.
 
 ### Dependencies
 
 - Compile binaries using [go 1.25.12](https://github.com/etcd-io/etcd/pull/22060).
+- [Bump golang.org/x/net from 0.54.0 to 0.55.0 to address CVE-2026-25681, CVE-2026-27136, CVE-2026-39821, CVE-2026-42502, CVE-2026-25680 and CVE-2026-42506](https://github.com/etcd-io/etcd/pull/22030)
+- [Bump google.golang.org/grpc to 1.82.1 to address GHSA-hrxh-6v49-42gf](https://github.com/etcd-io/etcd/pull/22155)
 
 ---
 
