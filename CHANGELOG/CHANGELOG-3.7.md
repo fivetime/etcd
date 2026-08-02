@@ -5,6 +5,14 @@ Previous change logs can be found at [CHANGELOG-3.6](https://github.com/etcd-io/
 
 ## v3.7.2 (TBC)
 
+### etcd server
+
+- [Update `MinimalEtcdVersion` to read latest snapshot entry from WAL](https://github.com/etcd-io/etcd/pull/22201)
+
+### etcdctl
+
+- [Fix duplicate `RaftTerm` field in the `endpoint status` output when using `--write-out=fields`](https://github.com/etcd-io/etcd/pull/22208)
+
 ---
 
 ## v3.7.1 (2026-07-23)
