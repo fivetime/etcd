@@ -2,7 +2,7 @@ module go.etcd.io/etcd/etcdctl/v3
 
 go 1.26
 
-toolchain go1.26.5
+toolchain go1.26.6
 
 require (
 	github.com/bgentry/speakeasy v0.2.0
@@ -12,10 +12,10 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
-	go.etcd.io/etcd/api/v3 v3.7.0-beta.0
-	go.etcd.io/etcd/client/pkg/v3 v3.7.0-beta.0
-	go.etcd.io/etcd/client/v3 v3.7.0-beta.0
-	go.etcd.io/etcd/pkg/v3 v3.7.0-beta.0
+	go.etcd.io/etcd/api/v3 v3.8.0-alpha.0
+	go.etcd.io/etcd/client/pkg/v3 v3.8.0-alpha.0
+	go.etcd.io/etcd/client/v3 v3.8.0-alpha.0
+	go.etcd.io/etcd/pkg/v3 v3.8.0-alpha.0
 	go.uber.org/zap v1.28.0
 	golang.org/x/time v0.15.0
 	google.golang.org/grpc v1.83.0

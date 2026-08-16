@@ -2,7 +2,7 @@ module go.etcd.io/etcd/client/v3
 
 go 1.26
 
-toolchain go1.26.5
+toolchain go1.26.6
 
 require (
 	github.com/Masterminds/semver/v3 v3.5.0
@@ -11,8 +11,8 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus v1.1.0
 	github.com/prometheus/client_golang v1.24.1
 	github.com/stretchr/testify v1.11.1
-	go.etcd.io/etcd/api/v3 v3.7.0-beta.0
-	go.etcd.io/etcd/client/pkg/v3 v3.7.0-beta.0
+	go.etcd.io/etcd/api/v3 v3.8.0-alpha.0
+	go.etcd.io/etcd/client/pkg/v3 v3.8.0-alpha.0
 	go.uber.org/zap v1.28.0
 	google.golang.org/grpc v1.83.0
 	google.golang.org/protobuf v1.36.11
