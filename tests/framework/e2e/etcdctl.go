@@ -92,9 +92,34 @@ func WithDialTimeout(tio time.Duration) config.ClientOption {
 	}
 }
 
+func (ctl *EtcdctlV3) Snapshot(ctx context.Context, outFile string) error {
+	// etcdctl requires the snapshot to be requested from exactly one node.
+	singleEndpointCtl := *ctl
+	singleEndpointCtl.endpoints = []string{ctl.endpoints[0]}
+	_, err := SpawnWithExpectLines(ctx, singleEndpointCtl.cmdArgs("snapshot", "save", outFile), nil, expect.ExpectedResponse{Value: "Snapshot saved at"})
+	return err
+}
+
 func (ctl *EtcdctlV3) DowngradeEnable(ctx context.Context, version string) error {
 	_, err := SpawnWithExpectLines(ctx, ctl.cmdArgs("downgrade", "enable", version), nil, expect.ExpectedResponse{Value: "Downgrade enable success"})
 	return err
+}
+
+func (ctl *EtcdctlV3) Downgrade(ctx context.Context, action clientv3.DowngradeAction, version string) (*clientv3.DowngradeResponse, error) {
+	var args []string
+	switch action {
+	case clientv3.DowngradeValidate:
+		args = []string{"downgrade", "validate", version}
+	case clientv3.DowngradeEnable:
+		args = []string{"downgrade", "enable", version}
+	case clientv3.DowngradeCancel:
+		args = []string{"downgrade", "cancel"}
+	default:
+		return nil, fmt.Errorf("unknown downgrade action %v", action)
+	}
+	resp := clientv3.DowngradeResponse{}
+	err := ctl.spawnJSONCmd(ctx, &resp, args...)
+	return &resp, err
 }
 
 func (ctl *EtcdctlV3) DowngradeCancel(ctx context.Context) error {
