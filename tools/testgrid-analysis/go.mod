@@ -1,8 +1,8 @@
 module go.etcd.io/etcd/tools/testgrid-analysis/v3
 
-go 1.26
+go 1.27
 
-toolchain go1.26.7
+toolchain go1.27.1
 
 require (
 	github.com/GoogleCloudPlatform/testgrid v0.0.176
@@ -18,6 +18,6 @@ require (
 	golang.org/x/net v0.58.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.41.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260803160001-6ac0973c030d // indirect
-	google.golang.org/grpc v1.83.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260825221802-da73d73af1c5 // indirect
+	google.golang.org/grpc v1.83.2 // indirect
 )
