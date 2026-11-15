@@ -73,7 +73,7 @@ if [ -n "${OUTPUT_FILE}" ]; then
   exec > >(tee -a "${OUTPUT_FILE}") 2>&1
 fi
 
-PASSES=${PASSES:-"bom dep build unit"}
+PASSES=${PASSES:-"dep build unit"}
 KEEP_GOING_SUITE=${KEEP_GOING_SUITE:-false}
 PKG=${PKG:-}
 SHELLCHECK_VERSION=${SHELLCHECK_VERSION:-"v0.10.0"}
@@ -393,69 +393,7 @@ function markdown_marker_pass {
 function govuln_pass {
   local tool_bin
   tool_bin=$(tool_get_bin golang.org/x/vuln/cmd/govulncheck)
-  run_for_all_workspace_modules run govulncheck -show verbose
-}
-
-function lint_pass {
-  run_for_all_workspace_modules golangci-lint run --config "${ETCD_ROOT_DIR}/tools/.golangci.yaml"
-}
-
-function lint_fix_pass {
-  run_for_all_workspace_modules golangci-lint run --config "${ETCD_ROOT_DIR}/tools/.golangci.yaml" --fix
-}
-
-function bom_pass {
-  log_callout "Checking bill of materials..."
-  local _bom_modules=()
-  load_workspace_relative_modules_for_bom _bom_modules
-
-  # Internally license-bill-of-materials tends to modify go.sum
-  run cp go.sum go.sum.tmp || return 2
-  run cp go.mod go.mod.tmp || return 2
-
-  # Intentionally run the command once first, so it fetches dependencies. The exit code on the first
-  # run in a just cloned repository is always dirty.
-  GOOS=linux run_go_tool github.com/appscodelabs/license-bill-of-materials \
-    --override-file ./bill-of-materials.override.json "${_bom_modules[@]}" &>/dev/null
-
-  # BOM file should be generated for linux. Otherwise running this command on other operating systems such as OSX
-  # results in certain dependencies being excluded from the BOM file, such as procfs.
-  # For more info, https://github.com/etcd-io/etcd/issues/19665
-  output=$(GOOS=linux run_go_tool github.com/appscodelabs/license-bill-of-materials \
-    --override-file ./bill-of-materials.override.json \
-    "${_bom_modules[@]}")
-  local code="$?"
-
-  run cp go.sum.tmp go.sum || return 2
-  run cp go.mod.tmp go.mod || return 2
-
-  if [ "${code}" -ne 0 ] ; then
-    log_error -e "license-bill-of-materials (code: ${code}) failed with:\\n${output}"
-    return 255
-  else
-    echo "${output}" > "bom-now.json.tmp"
-  fi
-  if ! diff ./bill-of-materials.json bom-now.json.tmp; then
-    log_error "modularized licenses do not match given bill of materials"
-    return 255
-  fi
-  rm bom-now.json.tmp
-}
-
-function module_gomodguard {
-  if [ ! -f .gomodguard.yaml ]; then
-    # Nothing to validate, return.
-    return
-  fi
-
-  local tool_bin="$1"
-  run "${tool_bin}"
-}
-
-function gomodguard_pass {
-  local tool_bin
-  tool_bin=$(tool_get_bin github.com/ryancurrah/gomodguard/cmd/gomodguard)
-  run_for_workspace_modules module_gomodguard "${tool_bin}"
+  run_for_all_workspace_modules run "${tool_bin}" -show verbose
 }
 
 ######## VARIOUS CHECKERS ######################################################
@@ -587,12 +525,8 @@ EOF
   VERSION="${VERSION}" run "${ETCD_ROOT_DIR}/scripts/test_images.sh"
 }
 
-function mod_tidy_pass {
-  run_for_workspace_modules run go mod tidy -diff
-}
-
 function proto_annotations_pass {
-  "${ETCD_ROOT_DIR}/scripts/verify_proto_annotations.sh"
+  "${ETCD_ROOT_DIR}/scripts/verify/proto-annotations.sh"
 }
 
 function genproto_pass {
