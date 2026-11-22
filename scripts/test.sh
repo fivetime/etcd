@@ -76,8 +76,6 @@ fi
 PASSES=${PASSES:-"dep build unit"}
 KEEP_GOING_SUITE=${KEEP_GOING_SUITE:-false}
 PKG=${PKG:-}
-SHELLCHECK_VERSION=${SHELLCHECK_VERSION:-"v0.10.0"}
-MARKDOWN_MARKER_VERSION=${MARKDOWN_MARKER_VERSION:="v0.10.0"}
 
 if [ -z "${GOARCH:-}" ]; then
   GOARCH=$(go env GOARCH);
@@ -196,23 +194,6 @@ function robustness_pass {
 function integration_e2e_pass {
   run_pass "integration" "${@}" || return 2
   run_pass "e2e" "${@}"
-}
-
-# generic_checker [cmd...]
-# executes given command in the current module, and clearly fails if it
-# failed or returned output.
-function generic_checker {
-  local cmd=("$@")
-  if ! output=$("${cmd[@]}"); then
-    echo "${output}"
-    log_error -e "FAIL: '${cmd[*]}' checking failed (!=0 return code)"
-    return 255
-  fi
-  if [ -n "${output}" ]; then
-    echo "${output}"
-    log_error -e "FAIL: '${cmd[*]}' checking failed (printed output)"
-    return 255
-  fi
 }
 
 function grpcproxy_pass {
@@ -345,51 +326,6 @@ function cov_pass {
 
 ######### Code formatting checkers #############################################
 
-function shellcheck_pass {
-  SHELLCHECK=shellcheck
-  if ! tool_exists "shellcheck" "https://github.com/koalaman/shellcheck#installing"; then
-    log_callout "Installing shellcheck $SHELLCHECK_VERSION"
-    wget -qO- "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.${OS}.${ARCH}.tar.xz" | tar -xJv -C /tmp/ --strip-components=1
-    mkdir -p ./bin
-    mv /tmp/shellcheck ./bin/
-    SHELLCHECK=./bin/shellcheck
-  fi
-  generic_checker run ${SHELLCHECK} -fgcc scripts/*.sh
-}
-
-function shellws_pass {
-  log_callout "Ensuring no tab-based indentation in shell scripts"
-  local files
-  if files=$(find . -name '*.sh' -print0 | xargs -0 grep -E -n $'^\s*\t'); then
-    log_error "FAIL: found tab-based indentation in the following bash scripts. Use '  ' (double space):"
-    log_error "${files}"
-    log_warning "Suggestion: run \"make fix\" to address the issue."
-    return 255
-  fi
-  log_success "SUCCESS: no tabulators found."
-}
-
-function markdown_marker_pass {
-  local marker="marker"
-  # TODO: check other markdown files when marker handles headers with '[]'
-  if ! tool_exists "$marker" "https://crates.io/crates/marker"; then
-    log_callout "Installing markdown marker $MARKDOWN_MARKER_VERSION"
-    MARKER_OS=$OS
-    if [ "$OS" = "darwin" ]; then
-      MARKER_OS="apple-darwin"
-    elif [ "$OS" = "linux" ]; then
-      MARKER_OS="unknown-linux-musl"
-    fi
-
-    wget -qO- "https://github.com/crawford/marker/releases/download/${MARKDOWN_MARKER_VERSION}/marker-${MARKDOWN_MARKER_VERSION}-${ARCH}-${MARKER_OS}.tar.gz" | tar -xzv -C /tmp/ --strip-components=1 >/dev/null
-    mkdir -p ./bin
-    mv /tmp/marker ./bin/
-    marker=./bin/marker
-  fi
-
-  generic_checker run "${marker}" --skip-http --allow-absolute-paths --root "${ETCD_ROOT_DIR}" -e ./CHANGELOG -e ./etcdctl -e etcdutl -e ./tools 2>&1
-}
-
 function govuln_pass {
   local tool_bin
   tool_bin=$(tool_get_bin golang.org/x/vuln/cmd/govulncheck)
@@ -397,45 +333,6 @@ function govuln_pass {
 }
 
 ######## VARIOUS CHECKERS ######################################################
-
-function dump_module_deps() {
-  local json_mod
-  json_mod=$(run go mod edit -json)
-
-  local module
-  if ! module=$(echo "${json_mod}" | jq -r .Module.Path); then
-    return 255
-  fi
-
-  local require
-  require=$(echo "${json_mod}" | jq -r '.Require')
-  if [ "$require" == "null" ]; then
-    return 0
-  fi
-
-  echo "$require" | jq -r '.[] | .Path+","+.Version+","+if .Indirect then " (indirect)" else "" end+",'"${module}"'"'
-}
-
-# Checks whether dependencies are consistent across modules
-function dep_pass {
-  local all_dependencies
-  all_dependencies=$(run_for_workspace_modules dump_module_deps | sort) || return 2
-
-  local duplicates
-  duplicates=$(echo "${all_dependencies}" | cut -d ',' -f 1,2 | sort | uniq | cut -d ',' -f 1 | sort | uniq -d) || return 2
-
-  if [[ -n "${duplicates}" ]]; then
-    for dup in ${duplicates}; do
-      log_error "FAIL: inconsistent versions for dependency: ${dup}"
-      echo "${all_dependencies}" | grep "${dup}," | sed 's|\([^,]*\),\([^,]*\),\([^,]*\),\([^,]*\)|  - \1@\2\3 from: \4|g'
-    done
-
-    log_error "FAIL: inconsistent dependencies"
-    return 2
-  fi
-
-  log_success "SUCCESS: dependencies are consistent across modules"
-}
 
 function release_pass {
   rm -f ./bin/etcd-last-release
@@ -527,21 +424,6 @@ EOF
 
 function proto_annotations_pass {
   "${ETCD_ROOT_DIR}/scripts/verify/proto-annotations.sh"
-}
-
-function genproto_pass {
-  "${ETCD_ROOT_DIR}/scripts/verify_genproto.sh"
-}
-
-function go_workspace_pass {
-  log_callout "Ensuring go workspace is in sync."
-
-  run go mod download
-  if [ -n "$(git status --porcelain go.work.sum)" ]; then
-    log_error "Go workspace not in sync."
-    log_warning "Suggestion: run \"make fix\" to address the issue."
-    return 255
-  fi
 }
 
 ########### MAIN ###############################################################

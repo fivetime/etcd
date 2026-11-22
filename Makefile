@@ -119,7 +119,7 @@ fix-bom:
 
 .PHONY: verify-dep
 verify-dep:
-	PASSES="dep" ./scripts/test.sh
+	./scripts/verify/dep.sh
 
 .PHONY: fix-dep
 fix-dep: fix-mod-tidy
@@ -135,7 +135,7 @@ fix-lint: install-golangci-lint
 
 .PHONY: verify-shellcheck
 verify-shellcheck:
-	PASSES="shellcheck" ./scripts/test.sh
+	./scripts/verify/shellcheck.sh
 
 .PHONY: verify-mod-tidy
 verify-mod-tidy:
@@ -147,7 +147,7 @@ fix-mod-tidy:
 
 .PHONY: verify-shellws
 verify-shellws:
-	PASSES="shellws" ./scripts/test.sh
+	./scripts/verify/shellws.sh
 
 .PHONY: fix-shell-ws
 fix-shell-ws:
@@ -159,7 +159,7 @@ verify-proto-annotations:
 
 .PHONY: verify-genproto
 verify-genproto:
-	PASSES="genproto" ./scripts/test.sh
+	./scripts/verify/genproto.sh
 
 .PHONY: verify-yamllint
 verify-yamllint:
@@ -167,7 +167,7 @@ verify-yamllint:
 
 .PHONY: verify-markdown-marker
 verify-markdown-marker:
-	PASSES="markdown_marker" ./scripts/test.sh
+	./scripts/verify/markdown-marker.sh
 
 .PHONY: fix-yamllint
 fix-yamllint:
@@ -220,7 +220,7 @@ verify-gomodguard:
 
 .PHONY: verify-go-workspace
 verify-go-workspace:
-	PASSES="go_workspace" ./scripts/test.sh
+	./scripts/verify/go-workspace.sh
 
 .PHONY: verify-grpc-experimental
 verify-grpc-experimental:
